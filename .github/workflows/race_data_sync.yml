@@ -2,7 +2,7 @@ name: Sync Race Logs to Grafana
 on:
   push:
     paths:
-      - 'data/*.csv'
+      - 'racestudio-compatible-data/*.csv'
 
 jobs:
   sync-telemetry:
