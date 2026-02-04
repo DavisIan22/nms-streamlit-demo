@@ -70,7 +70,7 @@ else:
         initial_view_state=pdk.ViewState(
             latitude=map_data['lat'].mean(),
             longitude=map_data['lon'].mean(),
-            zoom=16.5, # Zoomed in closer for PittRace track detail
+            zoom=16.5, # Zoomed in closer for track detail
             pitch=0,
         ),
         layers=[
