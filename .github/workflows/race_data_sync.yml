@@ -2,22 +2,22 @@ name: Sync Race Logs to Grafana
 on:
   push:
     paths:
-      - 'racestudio-compatible-data/*.csv'
+      - 'racestudio-compatible-data/**'
 
 jobs:
   sync-telemetry:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.10'
-          
+
       - name: Install Dependencies
         run: pip install pandas requests
-        
+
       - name: Push to Grafana Cloud
         env:
           GRAFANA_USER: "2396063"
