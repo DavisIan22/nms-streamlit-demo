@@ -15,7 +15,7 @@ if os.path.exists('racestudio-compatible-data'):
 elif os.path.exists('../racestudio-compatible-data'):
     log_folder = '../racestudio-compatible-data'
 else:
-    st.error("❌ Telemetry folder not found.")
+    st.error("Telemetry folder not found.")
     st.stop()
 
 # --- 2. File Selection ---
@@ -58,18 +58,19 @@ else:
     if selected_channels:
         st.line_chart(df, x="Time", y=selected_channels)
 
-    # --- 8. Track Map with Narrow Trace ---
+# --- 8. Track Map with Satellite View and Narrow Trace ---
     st.subheader("Track Map")
     map_data = df[['GPS Latitude', 'GPS Longitude']].dropna()
     map_data.columns = ['lat', 'lon']
 
-    # Using pydeck for a professional, narrow trace (radius = 2 meters)
+    # Using pydeck for satellite view and narrow trace
     st.pydeck_chart(pdk.Deck(
+        # Set background to satellite imagery
         map_style='mapbox://styles/mapbox/satellite-v9',
         initial_view_state=pdk.ViewState(
             latitude=map_data['lat'].mean(),
             longitude=map_data['lon'].mean(),
-            zoom=16,
+            zoom=16.5, # Zoomed in closer for PittRace track detail
             pitch=0,
         ),
         layers=[
@@ -77,8 +78,9 @@ else:
                 'ScatterplotLayer',
                 data=map_data,
                 get_position='[lon, lat]',
-                get_color='[255, 75, 75, 160]',
-                get_radius=2, # Small radius for narrow trace
+                # RGBA: Red trace with some transparency
+                get_color='[255, 75, 75, 160]', 
+                get_radius=1.5, # Reduced from 2 to 1.5 for an even thinner line
             ),
         ],
     ))
