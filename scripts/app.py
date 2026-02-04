@@ -15,7 +15,7 @@ if os.path.exists('racestudio-compatible-data'):
 elif os.path.exists('../racestudio-compatible-data'):
     log_folder = '../racestudio-compatible-data'
 else:
-    st.error("Telemetry folder not found.")
+    st.error("❌ Telemetry folder not found.")
     st.stop()
 
 # --- 2. File Selection ---
@@ -29,12 +29,15 @@ else:
     selected_path = file_map[selected_filename]
 
     # --- 3. Load & Clean Telemetry Data ---
-    df = pd.read_csv(selected_path, skiprows=14)
+    # low_memory=False handles the mixed type warning from your logs
+    df = pd.read_csv(selected_path, skiprows=14, low_memory=False)
     df = df.drop(0) 
     df = df.apply(pd.to_numeric, errors='coerce')
 
     # --- 4. Battery Power Calculations ---
+    # Power (kW) = (Voltage * Current) / 1000
     df['Power_kW'] = (df['External Voltage'] * df['Current']) / 1000.0
+    # Energy integration (Watt-hours)
     df['dt'] = df['Time'].diff().fillna(0)
     df['Energy_Ws'] = (df['External Voltage'] * df['Current']) * df['dt']
     total_energy_wh = df['Energy_Ws'].sum() / 3600.0
@@ -46,31 +49,41 @@ else:
     col3.metric("Peak Current", f"{df['Current'].max():.1f} A")
     col4.metric("Max Speed", f"{df['GPS Speed'].max():.1f} mph")
 
-    # --- 6. Power Analysis Chart ---
+    # --- 6. Powertrain Analysis Chart ---
     st.subheader("Powertrain Analysis")
     st.line_chart(df, x="Time", y=["Power_kW", "Current"])
 
-    # --- 7. Channel Comparison ---
+    # --- 7. Channel Comparison (Fixed for your error) ---
     st.divider()
     st.subheader("Channel Comparison")
-    available_channels = [c for c in df.columns if c not in ['Time', 'dt', 'Energy_Ws']]
-    selected_channels = st.multiselect("Select Channels", available_channels, default=["GPS Speed", "RPM"])
+    
+    # Filter out helper columns
+    available_channels = [c for c in df.columns if c not in ['Time', 'dt', 'Energy_Ws', 'Power_kW']]
+    
+    # --- SAFE DEFAULT LOGIC ---
+    # Check if 'GPS Speed' and 'RPM' actually exist in this specific CSV
+    defaults = []
+    if "GPS Speed" in available_channels: defaults.append("GPS Speed")
+    if "RPM" in available_channels: defaults.append("RPM")
+    # If neither exist, just pick the first available channel to avoid crash
+    if not defaults and available_channels: defaults = [available_channels[0]]
+
+    selected_channels = st.multiselect("Select Channels", available_channels, default=defaults)
+    
     if selected_channels:
         st.line_chart(df, x="Time", y=selected_channels)
 
-# --- 8. Track Map with Satellite View and Narrow Trace ---
+    # --- 8. Track Map with Satellite View ---
     st.subheader("Track Map")
     map_data = df[['GPS Latitude', 'GPS Longitude']].dropna()
     map_data.columns = ['lat', 'lon']
 
-    # Using pydeck for satellite view and narrow trace
     st.pydeck_chart(pdk.Deck(
-        # Set background to satellite imagery
         map_style='mapbox://styles/mapbox/satellite-v9',
         initial_view_state=pdk.ViewState(
             latitude=map_data['lat'].mean(),
             longitude=map_data['lon'].mean(),
-            zoom=16.5, # Zoomed in closer for track detail
+            zoom=16,
             pitch=0,
         ),
         layers=[
@@ -78,9 +91,8 @@ else:
                 'ScatterplotLayer',
                 data=map_data,
                 get_position='[lon, lat]',
-                # RGBA: Red trace with some transparency
-                get_color='[255, 75, 75, 160]', 
-                get_radius=1.5, # Reduced from 2 to 1.5 for an even thinner line
+                get_color='[255, 75, 75, 160]',
+                get_radius=1.5, # Narrow trace
             ),
         ],
     ))
