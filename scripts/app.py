@@ -92,7 +92,7 @@ else:
                 data=map_data,
                 get_position='[lon, lat]',
                 get_color='[255, 75, 75, 160]',
-                get_radius=1.5, # Narrow trace
+                get_radius=0.5, # Narrow trace
             ),
         ],
     ))
