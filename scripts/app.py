@@ -18,13 +18,18 @@ else:
     st.error("Telemetry folder not found.")
     st.stop()
 
-# --- 2. File Selection ---
-csv_files = glob.glob(f"{log_folder}/*.csv")
-if not csv_files:
+# --- 2. File Selection (Showing only Filenames) ---
+csv_paths = glob.glob(f"{log_folder}/*.csv")
+if not csv_paths:
     st.warning("No .csv logs found in folder.")
     st.stop()
 
-selected_path = st.sidebar.selectbox("Select Session Log", csv_files)
+# Create a mapping of { 'filename.csv': 'full/path/to/filename.csv' }
+file_mapping = {os.path.basename(p): p for p in csv_paths} #
+
+# Sidebar shows only the keys (the clean filenames)
+selected_filename = st.sidebar.selectbox("Select Session Log", sorted(file_mapping.keys()))
+selected_path = file_mapping[selected_filename] # The script uses the full path here
 
 # --- 3. Unit Selection ---
 unit_system = st.sidebar.radio("Unit System", ["Imperial (mph)", "Metric (km/h)"])
@@ -34,7 +39,6 @@ df = pd.read_csv(selected_path, skiprows=14, low_memory=False)
 df = df.drop(0).apply(pd.to_numeric, errors='coerce')
 
 # --- 5. Unit Conversions ---
-# Race Studio file 3.csv defaults to km/h for speed
 if unit_system == "Imperial (mph)":
     df['DisplaySpeed'] = df['GPS Speed'] * 0.621371
     speed_label = "mph"
@@ -43,15 +47,12 @@ else:
     speed_label = "km/h"
 
 # --- 6. Battery Power Calculations ---
-# Identifies pack columns for power analysis (P = V * I)
+# targets specific battery columns identified in your 3.csv file
 volt_col = next((c for c in df.columns if 'Pack Voltage' in c or 'External Voltage' in c), None)
 curr_col = next((c for c in df.columns if 'Pack Current' in c or 'Current' in c), None)
 
 if volt_col and curr_col:
-    # Use absolute voltage to handle potential negative sensor readings
     df['Power_kW'] = (df[volt_col].abs() * df[curr_col]) / 1000.0
-    
-    # Energy integration over time
     df['dt'] = df['Time'].diff().fillna(0)
     df['Energy_Ws'] = (df[volt_col].abs() * df[curr_col]) * df['dt']
     total_energy_wh = df['Energy_Ws'].sum() / 3600.0
@@ -79,7 +80,6 @@ st.subheader("Telemetry Channels")
 helper_cols = ['Time', 'dt', 'Energy_Ws', 'Power_kW', 'DisplaySpeed']
 available_channels = [c for c in df.columns if c not in helper_cols]
 
-# Set safe defaults to prevent crashing if columns are missing
 defaults = []
 if "DisplaySpeed" in df.columns: defaults.append("DisplaySpeed")
 if "RPM" in available_channels: defaults.append("RPM")
@@ -108,7 +108,7 @@ if 'GPS Latitude' in df and 'GPS Longitude' in df:
                 data=map_data,
                 get_position='[lon, lat]',
                 get_color='[255, 75, 75, 160]',
-                get_radius=1.5, # Narrower trace for better track visibility
+                get_radius=1.5,
             ),
         ],
     ))
